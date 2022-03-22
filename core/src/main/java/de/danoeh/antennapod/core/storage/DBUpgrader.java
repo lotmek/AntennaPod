@@ -11,25 +11,31 @@ import de.danoeh.antennapod.model.feed.FeedItem;
 import static de.danoeh.antennapod.model.feed.FeedPreferences.SPEED_USE_GLOBAL;
 
 class DBUpgrader {
+
+    static void upgradeTableNameFeeds(final String key, final String keyType) {
+        db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS + " ADD COLUMN " + key + keyType);
+    }
+
+    static void upgradeTableNameSimpleChapters(final String key, final String keyType) {
+        db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_SIMPLECHAPTERS + " ADD COLUMN " + key + keyType);
+    }
+
     /**
      * Upgrades the given database to a new schema version
      */
     static void upgrade(final SQLiteDatabase db, final int oldVersion, final int newVersion) {
         if (oldVersion <= 1) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS + " ADD COLUMN "
-                    + PodDBAdapter.KEY_TYPE + " TEXT");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_TYPE," TEXT");
         }
         if (oldVersion <= 2) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_SIMPLECHAPTERS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_LINK + " TEXT");
+            upgradeTableNameSimpleChapters(PodDBAdapter.KEY_LINK, " TEXT");
         }
         if (oldVersion <= 3) {
             db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_ITEMS
                     + " ADD COLUMN " + PodDBAdapter.KEY_ITEM_IDENTIFIER + " TEXT");
         }
         if (oldVersion <= 4) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS + " ADD COLUMN "
-                    + PodDBAdapter.KEY_FEED_IDENTIFIER + " TEXT");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_FEED_IDENTIFIER, " TEXT");
         }
         if (oldVersion <= 5) {
             db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_DOWNLOAD_LOG
@@ -38,8 +44,7 @@ class DBUpgrader {
                     + " ADD COLUMN " + PodDBAdapter.KEY_DOWNLOADSTATUS_TITLE + " TEXT");
         }
         if (oldVersion <= 6) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_SIMPLECHAPTERS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_CHAPTER_TYPE + " INTEGER");
+            upgradeTableNameSimpleChapters(PodDBAdapter.KEY_CHAPTER_TYPE," INTEGER");
         }
         if (oldVersion <= 7) {
             db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_MEDIA
@@ -72,14 +77,11 @@ class DBUpgrader {
             feeditemCursor.close();
         }
         if (oldVersion <= 9) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_AUTO_DOWNLOAD_ENABLED
-                    + " INTEGER DEFAULT 1");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_AUTO_DOWNLOAD_ENABLED," INTEGER DEFAULT 1");
         }
         if (oldVersion <= 10) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN flattr_status"
-                    + " INTEGER");
+            upgradeTableNameFeeds("flattr_status"," INTEGER");
+
             db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_ITEMS
                     + " ADD COLUMN flattr_status"
                     + " INTEGER");
@@ -88,21 +90,16 @@ class DBUpgrader {
                     + " INTEGER");
         }
         if (oldVersion <= 11) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_USERNAME
-                    + " TEXT");
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_PASSWORD
-                    + " TEXT");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_USERNAME," TEXT");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_PASSWORD," TEXT");
+
             db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_ITEMS
                     + " ADD COLUMN image"
                     + " INTEGER");
         }
         if (oldVersion <= 12) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_IS_PAGED + " INTEGER DEFAULT 0");
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_NEXT_PAGE_LINK + " TEXT");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_IS_PAGED," INTEGER DEFAULT 0");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_NEXT_PAGE_LINK," TEXT");
         }
         if (oldVersion <= 13) {
             // remove duplicate rows in "Chapters" table that were created because of a bug.
@@ -129,11 +126,8 @@ class DBUpgrader {
                     + " WHERE " + PodDBAdapter.TABLE_NAME_FEEDS + "." + PodDBAdapter.KEY_ID
                     + " = " + PodDBAdapter.TABLE_NAME_FEED_ITEMS + "." + PodDBAdapter.KEY_FEED + ")");
 
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_HIDE + " TEXT");
-
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_LAST_UPDATE_FAILED + " INTEGER DEFAULT 0");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_HIDE," TEXT");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_LAST_UPDATE_FAILED," INTEGER DEFAULT 0");
 
             // create indexes
             db.execSQL(PodDBAdapter.CREATE_INDEX_FEEDITEMS_FEED);
@@ -195,8 +189,7 @@ class DBUpgrader {
             db.execSQL(sql);
         }
         if (oldVersion <= 17) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_AUTO_DELETE_ACTION + " INTEGER DEFAULT 0");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_AUTO_DELETE_ACTION," INTEGER DEFAULT 0");
         }
         if (oldVersion < 1030005) {
             db.execSQL("UPDATE FeedItems SET auto_download=0 WHERE " +
@@ -251,15 +244,11 @@ class DBUpgrader {
             db.endTransaction();
 
             // and now get ready for autodownload filters
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_INCLUDE_FILTER + " TEXT DEFAULT ''");
-
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_EXCLUDE_FILTER + " TEXT DEFAULT ''");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_INCLUDE_FILTER," TEXT DEFAULT ''");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_EXCLUDE_FILTER," TEXT DEFAULT ''");
 
             // and now auto refresh
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_KEEP_UPDATED + " INTEGER DEFAULT 1");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_KEEP_UPDATED," INTEGER DEFAULT 1");
         }
         if (oldVersion < 1050004) {
             // prevent old timestamps to be misinterpreted as ETags
@@ -267,12 +256,11 @@ class DBUpgrader {
                     + " SET " + PodDBAdapter.KEY_LASTUPDATE + "=NULL");
         }
         if (oldVersion < 1060200) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_CUSTOM_TITLE + " TEXT");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_CUSTOM_TITLE," TEXT");
         }
         if (oldVersion < 1060596) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_IMAGE_URL + " TEXT");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_IMAGE_URL," TEXT");
+
             db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_ITEMS
                     + " ADD COLUMN " + PodDBAdapter.KEY_IMAGE_URL + " TEXT");
 
@@ -291,40 +279,32 @@ class DBUpgrader {
             db.execSQL("DROP TABLE " + PodDBAdapter.TABLE_NAME_FEED_IMAGES);
         }
         if (oldVersion < 1070400) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_FEED_PLAYBACK_SPEED + " REAL DEFAULT " + SPEED_USE_GLOBAL);
+            upgradeTableNameFeeds(PodDBAdapter.KEY_FEED_PLAYBACK_SPEED," REAL DEFAULT " + SPEED_USE_GLOBAL);
         }
         if (oldVersion < 1070401) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_SORT_ORDER + " TEXT");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_SORT_ORDER," TEXT");
         }
         if (oldVersion < 1090000) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_FEED_VOLUME_ADAPTION + " INTEGER DEFAULT 0");
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_SIMPLECHAPTERS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_IMAGE_URL + " TEXT DEFAULT NULL");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_FEED_VOLUME_ADAPTION," INTEGER DEFAULT 0");
+            upgradeTableNameSimpleChapters(PodDBAdapter.KEY_IMAGE_URL," TEXT DEFAULT NULL");
         }
         if (oldVersion < 1090001) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_FEED_SKIP_INTRO + " INTEGER DEFAULT 0;");
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_FEED_SKIP_ENDING + " INTEGER DEFAULT 0;");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_FEED_SKIP_INTRO," INTEGER DEFAULT 0;");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_FEED_SKIP_ENDING," INTEGER DEFAULT 0;");
         }
         if (oldVersion < 2020000) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_EPISODE_NOTIFICATION + " INTEGER DEFAULT 0;");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_EPISODE_NOTIFICATION," INTEGER DEFAULT 0;");
+
         }
         if (oldVersion < 2030000) {
             db.execSQL("UPDATE " + PodDBAdapter.TABLE_NAME_FEED_ITEMS
                     + " SET " + PodDBAdapter.KEY_DESCRIPTION + " = content_encoded, content_encoded = NULL "
                     + "WHERE length(" + PodDBAdapter.KEY_DESCRIPTION + ") < length(content_encoded)");
             db.execSQL("UPDATE " + PodDBAdapter.TABLE_NAME_FEED_ITEMS + " SET content_encoded = NULL");
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_FEED_TAGS + " TEXT;");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_FEED_TAGS," TEXT");
         }
         if (oldVersion < 2050000) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
-                    + " ADD COLUMN " + PodDBAdapter.KEY_MINIMAL_DURATION_FILTER + " INTEGER DEFAULT -1");
+            upgradeTableNameFeeds(PodDBAdapter.KEY_MINIMAL_DURATION_FILTER," INTEGER DEFAULT -1");
         }
     }
 
