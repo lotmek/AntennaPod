@@ -44,6 +44,18 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.media.MediaBrowserServiceCompat;
 import androidx.preference.PreferenceManager;
 
+import de.danoeh.antennapod.core.service.playback.keycode.DefaultHandler;
+import de.danoeh.antennapod.core.service.playback.keycode.HeadsetHookHandler;
+import de.danoeh.antennapod.core.service.playback.keycode.KeyCodeHandlerContext;
+import de.danoeh.antennapod.core.service.playback.keycode.KeyCodeHandlerStrategy;
+import de.danoeh.antennapod.core.service.playback.keycode.MediaFastForwardHandler;
+import de.danoeh.antennapod.core.service.playback.keycode.MediaNextHandler;
+import de.danoeh.antennapod.core.service.playback.keycode.MediaPauseHandler;
+import de.danoeh.antennapod.core.service.playback.keycode.MediaPlayHandler;
+import de.danoeh.antennapod.core.service.playback.keycode.MediaPlayPauseHandler;
+import de.danoeh.antennapod.core.service.playback.keycode.MediaPreviousHandler;
+import de.danoeh.antennapod.core.service.playback.keycode.MediaRewindHandler;
+import de.danoeh.antennapod.core.service.playback.keycode.MediaStopHandler;
 import de.danoeh.antennapod.event.playback.BufferUpdateEvent;
 import de.danoeh.antennapod.event.playback.PlaybackServiceEvent;
 import de.danoeh.antennapod.event.PlayerErrorEvent;
@@ -58,6 +70,7 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -105,6 +118,21 @@ public class PlaybackService extends MediaBrowserServiceCompat {
      * Logging tag
      */
     private static final String TAG = "PlaybackService";
+
+    /**
+     * Strategy by keycode.
+     */
+    HashMap<Integer, KeyCodeHandlerStrategy> strategyByKeyCode = new HashMap<Integer, KeyCodeHandlerStrategy>() {{
+        put(KeyEvent.KEYCODE_HEADSETHOOK, new HeadsetHookHandler());
+        put(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, new MediaPlayPauseHandler());
+        put(KeyEvent.KEYCODE_MEDIA_PLAY, new MediaPlayHandler());
+        put(KeyEvent.KEYCODE_MEDIA_PAUSE, new MediaPauseHandler());
+        put(KeyEvent.KEYCODE_MEDIA_NEXT, new MediaNextHandler());
+        put(KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, new MediaFastForwardHandler());
+        put(KeyEvent.KEYCODE_MEDIA_PREVIOUS, new MediaPreviousHandler());
+        put(KeyEvent.KEYCODE_MEDIA_REWIND, new MediaRewindHandler());
+        put(KeyEvent.KEYCODE_MEDIA_STOP, new MediaStopHandler());
+    }};
 
     public static final String EXTRA_PLAYABLE = "PlaybackService.PlayableExtra";
     public static final String EXTRA_ALLOW_STREAM_THIS_TIME = "extra.de.danoeh.antennapod.core.service.allowStream";
@@ -620,97 +648,19 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         notificationManager.notify(R.id.notification_streaming_confirmation, builder.build());
     }
 
-    /**
-     * Handles media button events
-     * return: keycode was handled
-     */
     private boolean handleKeycode(int keycode, boolean notificationButton) {
         Log.d(TAG, "Handling keycode: " + keycode);
         final PlaybackServiceMediaPlayer.PSMPInfo info = mediaPlayer.getPSMPInfo();
         final PlayerStatus status = info.playerStatus;
-        switch (keycode) {
-            case KeyEvent.KEYCODE_HEADSETHOOK:
-            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-                if (status == PlayerStatus.PLAYING) {
-                    mediaPlayer.pause(!UserPreferences.isPersistNotify(), false);
-                } else if (status == PlayerStatus.PAUSED || status == PlayerStatus.PREPARED) {
-                    mediaPlayer.resume();
-                } else if (status == PlayerStatus.PREPARING) {
-                    mediaPlayer.setStartWhenPrepared(!mediaPlayer.isStartWhenPrepared());
-                } else if (status == PlayerStatus.INITIALIZED) {
-                    mediaPlayer.setStartWhenPrepared(true);
-                    mediaPlayer.prepare();
-                } else if (mediaPlayer.getPlayable() == null) {
-                    startPlayingFromPreferences();
-                } else {
-                    return false;
-                }
-                taskManager.restartSleepTimer();
-                return true;
-            case KeyEvent.KEYCODE_MEDIA_PLAY:
-                if (status == PlayerStatus.PAUSED || status == PlayerStatus.PREPARED) {
-                    mediaPlayer.resume();
-                } else if (status == PlayerStatus.INITIALIZED) {
-                    mediaPlayer.setStartWhenPrepared(true);
-                    mediaPlayer.prepare();
-                } else if (mediaPlayer.getPlayable() == null) {
-                    startPlayingFromPreferences();
-                } else {
-                    return false;
-                }
-                taskManager.restartSleepTimer();
-                return true;
-            case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                if (status == PlayerStatus.PLAYING) {
-                    mediaPlayer.pause(!UserPreferences.isPersistNotify(), false);
-                    return true;
-                }
-                return false;
-            case KeyEvent.KEYCODE_MEDIA_NEXT:
-                if (!notificationButton) {
-                    // Handle remapped button as notification button which is not remapped again.
-                    return handleKeycode(UserPreferences.getHardwareForwardButton(), true);
-                } else if (getStatus() == PlayerStatus.PLAYING || getStatus() == PlayerStatus.PAUSED) {
-                    mediaPlayer.skip();
-                    return true;
-                }
-                return false;
-            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
-                if (getStatus() == PlayerStatus.PLAYING || getStatus() == PlayerStatus.PAUSED) {
-                    mediaPlayer.seekDelta(UserPreferences.getFastForwardSecs() * 1000);
-                    return true;
-                }
-                return false;
-            case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
-                if (!notificationButton) {
-                    // Handle remapped button as notification button which is not remapped again.
-                    return handleKeycode(UserPreferences.getHardwarePreviousButton(), true);
-                } else if (getStatus() == PlayerStatus.PLAYING || getStatus() == PlayerStatus.PAUSED) {
-                    mediaPlayer.seekTo(0);
-                    return true;
-                }
-                return false;
-            case KeyEvent.KEYCODE_MEDIA_REWIND:
-                if (getStatus() == PlayerStatus.PLAYING || getStatus() == PlayerStatus.PAUSED) {
-                    mediaPlayer.seekDelta(-UserPreferences.getRewindSecs() * 1000);
-                    return true;
-                }
-                return false;
-            case KeyEvent.KEYCODE_MEDIA_STOP:
-                if (status == PlayerStatus.PLAYING) {
-                    mediaPlayer.pause(true, true);
-                }
+        KeyCodeHandlerContext context = new KeyCodeHandlerContext();
+        KeyCodeHandlerStrategy strategy = getKeyCodeHandlerStrategy(keycode);
+        context.setStrategy(strategy);
+        return context.executeStrategy(mediaPlayer, status, notificationButton);
+    }
 
-                stateManager.stopForeground(true); // gets rid of persistent notification
-                return true;
-            default:
-                Log.d(TAG, "Unhandled key code: " + keycode);
-                if (info.playable != null && info.playerStatus == PlayerStatus.PLAYING) {   // only notify the user about an unknown key event if it is actually doing something
-                    String message = String.format(getResources().getString(R.string.unknown_media_key), keycode);
-                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-                }
-        }
-        return false;
+    private KeyCodeHandlerStrategy getKeyCodeHandlerStrategy(int keycode){
+        KeyCodeHandlerStrategy strategy = strategyByKeyCode.get(keycode);
+        return strategy == null ? new DefaultHandler() : strategy;
     }
 
     private void startPlayingFromPreferences() {
