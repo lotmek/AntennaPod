@@ -12,24 +12,28 @@ import static de.danoeh.antennapod.model.feed.FeedPreferences.SPEED_USE_GLOBAL;
 
 class DBUpgrader {
 
+    static void upgradeTableName(final String tableName, final String key, final String keyType) {
+        db.execSQL("ALTER TABLE " + tableName + " ADD COLUMN " + key + keyType);
+    }
+
     static void upgradeTableNameFeeds(final String key, final String keyType) {
-        db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS + " ADD COLUMN " + key + keyType);
+        upgradeTableName(PodDBAdapter.TABLE_NAME_FEEDS, key, keyType);
     }
 
     static void upgradeTableNameSimpleChapters(final String key, final String keyType) {
-        db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_SIMPLECHAPTERS + " ADD COLUMN " + key + keyType);
+        upgradeTableName(PodDBAdapter.TABLE_NAME_SIMPLECHAPTERS, key, keyType);
     }
 
     static void upgradeTableNameFeedItems(final String key, final String keyType) {
-        db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_ITEMS + " ADD COLUMN " + key + keyType);
+        upgradeTableName(PodDBAdapter.TABLE_NAME_FEED_ITEMS, key, keyType);
     }
 
     static void upgradeTableNameDownloadLog(final String key, final String keyType) {
-        db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_DOWNLOAD_LOG + " ADD COLUMN " + key + keyType);
+        upgradeTableName(PodDBAdapter.TABLE_NAME_DOWNLOAD_LOG, key, keyType);
     }
 
     static void upgradeTableNameFeedMedia(final String key, final String keyType) {
-        db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_MEDIA + " ADD COLUMN " + key + keyType);
+        upgradeTableName(PodDBAdapter.TABLE_NAME_FEED_MEDIA, key, keyType);
     }
 
     static void upgradeTableNameFeedsReplaceKey(final String keyToRepalce, final String newKey) {
