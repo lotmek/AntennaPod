@@ -24,6 +24,10 @@ class DBUpgrader {
         db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_ITEMS + " ADD COLUMN " + key + keyType);
     }
 
+    static void upgradeTableNameDownloadLog(final String key, final String keyType) {
+        db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_DOWNLOAD_LOG + " ADD COLUMN " + key + keyType);
+    }
+
     /**
      * Upgrades the given database to a new schema version
      */
@@ -41,10 +45,8 @@ class DBUpgrader {
             upgradeTableNameFeeds(PodDBAdapter.KEY_FEED_IDENTIFIER, " TEXT");
         }
         if (oldVersion <= 5) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_DOWNLOAD_LOG
-                    + " ADD COLUMN " + PodDBAdapter.KEY_REASON_DETAILED + " TEXT");
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_DOWNLOAD_LOG
-                    + " ADD COLUMN " + PodDBAdapter.KEY_DOWNLOADSTATUS_TITLE + " TEXT");
+            upgradeTableNameDownloadLog(PodDBAdapter.KEY_REASON_DETAILED, " TEXT");
+            upgradeTableNameDownloadLog(PodDBAdapter.KEY_DOWNLOADSTATUS_TITLE, " TEXT");
         }
         if (oldVersion <= 6) {
             upgradeTableNameSimpleChapters(PodDBAdapter.KEY_CHAPTER_TYPE," INTEGER");
