@@ -377,55 +377,73 @@ public class DBWriter {
     public static Future<?> addQueueItem(final Context context, final boolean performAutoDownload,
                                          final boolean markAsUnplayed, final long... itemIds) {
         return dbExec.submit(() -> {
-            if (itemIds.length < 1) {
-                return;
-            }
+            if (itemIds.length < 1) return;
 
             final PodDBAdapter adapter = PodDBAdapter.getInstance();
             adapter.open();
             final List<FeedItem> queue = DBReader.getQueue(adapter);
 
-            boolean queueModified = false;
-            LongList markAsUnplayedIds = new LongList();
-            List<QueueEvent> events = new ArrayList<>();
-            List<FeedItem> updatedItems = new ArrayList<>();
-            ItemEnqueuePositionCalculator positionCalculator =
-                    new ItemEnqueuePositionCalculator(UserPreferences.getEnqueueLocation());
-            Playable currentlyPlaying = PlayableUtils.createInstanceFromPreferences(context);
-            int insertPosition = positionCalculator.calcPosition(queue, currentlyPlaying);
-            for (long itemId : itemIds) {
-                if (!itemListContains(queue, itemId)) {
-                    final FeedItem item = DBReader.getFeedItem(itemId);
-                    if (item != null) {
-                        queue.add(insertPosition, item);
-                        events.add(QueueEvent.added(item, insertPosition));
-
-                        item.addTag(FeedItem.TAG_QUEUE);
-                        updatedItems.add(item);
-                        queueModified = true;
-                        if (item.isNew()) {
-                            markAsUnplayedIds.add(item.getId());
-                        }
-                        insertPosition++;
-                    }
-                }
-            }
-            if (queueModified) {
-                applySortOrder(queue, events);
+            ItemHelper itemHelper = new ItemHelper();
+            if (isQueueModified(context, queue, itemHelper, itemIds)) {
+                applySortOrder(queue, itemHelper.getEvents());
                 adapter.setQueue(queue);
-                for (QueueEvent event : events) {
-                    EventBus.getDefault().post(event);
-                }
-                EventBus.getDefault().post(FeedItemEvent.updated(updatedItems));
-                if (markAsUnplayed && markAsUnplayedIds.size() > 0) {
-                    DBWriter.markItemPlayed(FeedItem.UNPLAYED, markAsUnplayedIds.toArray());
-                }
+                handleEvent(itemHelper.getEvents(), itemHelper.getUpdatedItems());
+                markUnplayedItems(markAsUnplayed, itemHelper.getMarkAsUnplayedIds());
             }
             adapter.close();
-            if (performAutoDownload) {
-                DBTasks.autodownloadUndownloadedItems(context);
-            }
+            performAutoDownloadUndownloadedItems(context, performAutoDownload);
         });
+    }
+
+    private static int getInsertionPosition(final Context context, List<FeedItem> queue) {
+        ItemEnqueuePositionCalculator positionCalculator =
+                new ItemEnqueuePositionCalculator(UserPreferences.getEnqueueLocation());
+        Playable currentlyPlaying = PlayableUtils.createInstanceFromPreferences(context);
+        return positionCalculator.calcPosition(queue, currentlyPlaying);
+    }
+
+    private static boolean isQueueModified(final Context context,
+                                           List<FeedItem> queue,
+                                           ItemHelper itemHelper,
+                                           final long... itemIds) {
+
+        int insertPosition = getInsertionPosition(context, queue);
+        boolean queueModified = false;
+
+        for (long itemId : itemIds) {
+            if (itemListContains(queue, itemId)) continue;
+
+            final FeedItem item = DBReader.getFeedItem(itemId);
+            if (item == null) continue;
+
+            queue.add(insertPosition, item);
+            itemHelper.addEvent(QueueEvent.added(item, insertPosition));
+            item.addTag(FeedItem.TAG_QUEUE);
+            itemHelper.updateItem(item);
+            queueModified = true;
+            if (item.isNew()) {
+                itemHelper.markAsUnplayed(item.getId());
+            }
+            insertPosition++;
+        }
+        return queueModified;
+    }
+
+    private static void handleEvent(List<QueueEvent> events, List<FeedItem> updatedItems) {
+        for (QueueEvent event : events) {
+            EventBus.getDefault().post(event);
+        }
+        EventBus.getDefault().post(FeedItemEvent.updated(updatedItems));
+    }
+
+    private static void markUnplayedItems(boolean markAsUnplayed, LongList markAsUnplayedIds) {
+        if (markAsUnplayed && markAsUnplayedIds.size() > 0) {
+            DBWriter.markItemPlayed(FeedItem.UNPLAYED, markAsUnplayedIds.toArray());
+        }
+    }
+
+    private static void performAutoDownloadUndownloadedItems(final Context context, boolean performAutoDownload) {
+        if (performAutoDownload) DBTasks.autodownloadUndownloadedItems(context);
     }
 
     /**
