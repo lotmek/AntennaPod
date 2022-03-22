@@ -28,6 +28,15 @@ class DBUpgrader {
         db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_DOWNLOAD_LOG + " ADD COLUMN " + key + keyType);
     }
 
+    static void upgradeTableNameFeedMedia(final String key, final String keyType) {
+        db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_MEDIA + " ADD COLUMN " + key + keyType);
+    }
+
+    static void upgradeTableNameFeedsReplaceKey(final String keyToRepalce, final String newKey) {
+        db.execSQL("UPDATE " + PodDBAdapter.TABLE_NAME_FEEDS + "\n" +
+                "SET " + PodDBAdapter.KEY_HIDE + " = replace(" + PodDBAdapter.KEY_HIDE + ", " + keyToRepalce + ")" + newKey +")");
+    }
+
     /**
      * Upgrades the given database to a new schema version
      */
@@ -52,18 +61,15 @@ class DBUpgrader {
             upgradeTableNameSimpleChapters(PodDBAdapter.KEY_CHAPTER_TYPE," INTEGER");
         }
         if (oldVersion <= 7) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_MEDIA
-                    + " ADD COLUMN " + PodDBAdapter.KEY_PLAYBACK_COMPLETION_DATE
-                    + " INTEGER");
+            upgradeTableNameFeedMedia(PodDBAdapter.KEY_PLAYBACK_COMPLETION_DATE, " INTEGER");
         }
         if (oldVersion <= 8) {
             final int KEY_ID_POSITION = 0;
             final int KEY_MEDIA_POSITION = 1;
 
             // Add feeditem column to feedmedia table
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_MEDIA
-                    + " ADD COLUMN " + PodDBAdapter.KEY_FEEDITEM
-                    + " INTEGER");
+            upgradeTableNameFeedMedia(PodDBAdapter.KEY_FEEDITEM, " INTEGER");
+
             Cursor feeditemCursor = db.query(PodDBAdapter.TABLE_NAME_FEED_ITEMS,
                     new String[]{PodDBAdapter.KEY_ID, PodDBAdapter.KEY_MEDIA}, "? > 0",
                     new String[]{PodDBAdapter.KEY_MEDIA}, null, null, null);
@@ -87,10 +93,7 @@ class DBUpgrader {
         if (oldVersion <= 10) {
             upgradeTableNameFeeds("flattr_status"," INTEGER");
             upgradeTableNameFeedItems("flattr_status", " INTEGER");
-
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_MEDIA
-                    + " ADD COLUMN " + PodDBAdapter.KEY_PLAYED_DURATION
-                    + " INTEGER");
+            upgradeTableNameFeedMedia(PodDBAdapter.KEY_PLAYED_DURATION, " INTEGER");;
         }
         if (oldVersion <= 11) {
             upgradeTableNameFeeds(PodDBAdapter.KEY_USERNAME," TEXT");
@@ -137,8 +140,8 @@ class DBUpgrader {
             db.execSQL(PodDBAdapter.CREATE_INDEX_SIMPLECHAPTERS_FEEDITEM);
         }
         if (oldVersion <= 15) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_MEDIA
-                    + " ADD COLUMN " + PodDBAdapter.KEY_HAS_EMBEDDED_PICTURE + " INTEGER DEFAULT -1");
+            upgradeTableNameFeedMedia(PodDBAdapter.KEY_HAS_EMBEDDED_PICTURE, " INTEGER DEFAULT -1");
+
             db.execSQL("UPDATE " + PodDBAdapter.TABLE_NAME_FEED_MEDIA
                     + " SET " + PodDBAdapter.KEY_HAS_EMBEDDED_PICTURE + "=0"
                     + " WHERE " + PodDBAdapter.KEY_DOWNLOADED + "=0");
@@ -201,8 +204,7 @@ class DBUpgrader {
             db.execSQL(PodDBAdapter.CREATE_TABLE_FAVORITES);
         }
         if (oldVersion < 1040002) {
-            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_MEDIA
-                    + " ADD COLUMN " + PodDBAdapter.KEY_LAST_PLAYED_TIME + " INTEGER DEFAULT 0");
+            upgradeTableNameFeedMedia(PodDBAdapter.KEY_LAST_PLAYED_TIME, " INTEGER DEFAULT 0");
         }
         if (oldVersion < 1040013) {
             db.execSQL(PodDBAdapter.CREATE_INDEX_FEEDITEMS_PUBDATE);
@@ -210,36 +212,25 @@ class DBUpgrader {
         }
         if (oldVersion < 1050003) {
             // Migrates feed list filter data
-
             db.beginTransaction();
 
             // Change to intermediate values to avoid overwriting in the following find/replace
-            db.execSQL("UPDATE " + PodDBAdapter.TABLE_NAME_FEEDS + "\n" +
-                    "SET " + PodDBAdapter.KEY_HIDE + " = replace(" + PodDBAdapter.KEY_HIDE + ", 'unplayed', 'noplay')");
-            db.execSQL("UPDATE " + PodDBAdapter.TABLE_NAME_FEEDS + "\n" +
-                    "SET " + PodDBAdapter.KEY_HIDE + " = replace(" + PodDBAdapter.KEY_HIDE + ", 'not_queued', 'noqueue')");
-            db.execSQL("UPDATE " + PodDBAdapter.TABLE_NAME_FEEDS + "\n" +
-                    "SET " + PodDBAdapter.KEY_HIDE + " = replace(" + PodDBAdapter.KEY_HIDE + ", 'not_downloaded', 'nodl')");
+            upgradeTableNameFeedsReplaceKey("unplayed", "noplay");
+            upgradeTableNameFeedsReplaceKey("not_queued", "noqueue");
+            upgradeTableNameFeedsReplaceKey("not_downloaded", "nodl");
 
             // Replace played, queued, and downloaded with their opposites
-            db.execSQL("UPDATE " + PodDBAdapter.TABLE_NAME_FEEDS + "\n" +
-                    "SET " + PodDBAdapter.KEY_HIDE + " = replace(" + PodDBAdapter.KEY_HIDE + ", 'played', 'unplayed')");
-            db.execSQL("UPDATE " + PodDBAdapter.TABLE_NAME_FEEDS + "\n" +
-                    "SET " + PodDBAdapter.KEY_HIDE + " = replace(" + PodDBAdapter.KEY_HIDE + ", 'queued', 'not_queued')");
-            db.execSQL("UPDATE " + PodDBAdapter.TABLE_NAME_FEEDS + "\n" +
-                    "SET " + PodDBAdapter.KEY_HIDE + " = replace(" + PodDBAdapter.KEY_HIDE + ", 'downloaded', 'not_downloaded')");
+            upgradeTableNameFeedsReplaceKey("played", "unplayed");
+            upgradeTableNameFeedsReplaceKey("queued", "not_queued");
+            upgradeTableNameFeedsReplaceKey("downloaded", "not_downloaded");
 
             // Now replace intermediates for unplayed, not queued, etc. with their opposites
-            db.execSQL("UPDATE " + PodDBAdapter.TABLE_NAME_FEEDS + "\n" +
-                    "SET " + PodDBAdapter.KEY_HIDE + " = replace(" + PodDBAdapter.KEY_HIDE + ", 'noplay', 'played')");
-            db.execSQL("UPDATE " + PodDBAdapter.TABLE_NAME_FEEDS + "\n" +
-                    "SET " + PodDBAdapter.KEY_HIDE + " = replace(" + PodDBAdapter.KEY_HIDE + ", 'noqueue', 'queued')");
-            db.execSQL("UPDATE " + PodDBAdapter.TABLE_NAME_FEEDS + "\n" +
-                    "SET " + PodDBAdapter.KEY_HIDE + " = replace(" + PodDBAdapter.KEY_HIDE + ", 'nodl', 'downloaded')");
+            upgradeTableNameFeedsReplaceKey("noplay", "played");
+            upgradeTableNameFeedsReplaceKey("noqueue", "queued");
+            upgradeTableNameFeedsReplaceKey("nodl", "downloaded");
 
             // Paused doesn't have an opposite, so unplayed is the next best option
-            db.execSQL("UPDATE " + PodDBAdapter.TABLE_NAME_FEEDS + "\n" +
-                    "SET " + PodDBAdapter.KEY_HIDE + " = replace(" + PodDBAdapter.KEY_HIDE + ", 'paused', 'unplayed')");
+            upgradeTableNameFeedsReplaceKey("paused", "unplayed");
 
             db.setTransactionSuccessful();
             db.endTransaction();
